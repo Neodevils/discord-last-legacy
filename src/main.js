@@ -6,25 +6,70 @@ const BASE_URL = import.meta.env.BASE_URL;
 const SWF_URL = `${BASE_URL}LastLegacy2.swf`;
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
 
-const statusEl = document.querySelector("#status");
 const playerHost = document.querySelector("#player");
 
-function setStatus(message) {
-  statusEl.textContent = message;
+function installKongregateStub() {
+  const kongregate = {
+    stats: {
+      submit: () => {},
+    },
+    services: {
+      addEventListener: () => {},
+      connect: () => {},
+      getGameAuthToken: () => "",
+      getUserId: () => "0",
+      getUsername: () => "Guest",
+      isGuest: () => true,
+      showRegistrationBox: () => {},
+    },
+    scores: {
+      showTab: () => {},
+    },
+    mtf: {
+      showTab: () => {},
+    },
+  };
+
+  window.kongregate = window.kongregate || kongregate;
+  window.kongregateAPI = window.kongregateAPI || {
+    getAPI: () => window.kongregate,
+    loadAPI: (callback) => {
+      if (typeof callback === "function") {
+        callback();
+      }
+    },
+  };
 }
 
 async function bootDiscordSdk() {
   if (!DISCORD_CLIENT_ID) {
-    setStatus("Yerel mod: Discord client id yok.");
     return;
   }
 
   const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
   await sdk.ready();
-  setStatus("Discord Activity hazir.");
+
+  await sdk.commands.authorize({
+    client_id: DISCORD_CLIENT_ID,
+    response_type: "code",
+    state: "",
+    prompt: "none",
+    scope: ["rpc.activities.write"],
+  });
+
+  await sdk.commands.setActivity({
+    activity: {
+      type: 0,
+      details: "Last Legacy 2",
+      state: "Playing",
+      instance: true,
+    },
+  });
 }
 
 async function bootRuffle() {
+  installKongregateStub();
+
   window.RufflePlayer = window.RufflePlayer || {};
   window.RufflePlayer.config = {
     autoplay: "on",
@@ -33,7 +78,7 @@ async function bootRuffle() {
     splashScreen: true,
     contextMenu: "off",
     letterbox: "on",
-    scale: "showAll",
+    scale: "exactFit",
     quality: "high",
     base: BASE_URL,
   };
@@ -45,9 +90,7 @@ async function bootRuffle() {
   playerHost.replaceChildren(player);
   player.style.width = "100%";
   player.style.height = "100%";
-  setStatus("Oyun yukleniyor...");
   await player.load(SWF_URL);
-  setStatus("Oyun yuklendi.");
 }
 
 function loadScript(src) {
@@ -77,7 +120,6 @@ async function main() {
     await bootRuffle();
   } catch (error) {
     console.error(error);
-    setStatus("Yukleme hatasi. Konsolu kontrol et.");
   }
 }
 
