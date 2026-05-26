@@ -6,6 +6,7 @@ const BASE_URL = import.meta.env.BASE_URL;
 const SWF_URL = `${BASE_URL}LastLegacy2.swf`;
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
 const KONGREGATE_API_URL = `${BASE_URL}API_AS3_Local.swf`;
+const NEWGROUNDS_PROMO_URL = `${BASE_URL}NewgroundsPromo.swf`;
 
 const playerHost = document.querySelector("#player");
 
@@ -87,6 +88,10 @@ async function bootRuffle() {
       [
         /^https:\/\/www\.kongregate\.com\/flash\/API_AS3_Local\.swf(?:\?.*)?$/,
         KONGREGATE_API_URL,
+      ],
+      [
+        /^https:\/\/apifiles\.ngfiles\.com\/NewgroundsPromo\.swf(?:\?.*)?$/,
+        NEWGROUNDS_PROMO_URL,
       ],
     ],
   };
