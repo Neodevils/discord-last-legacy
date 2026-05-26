@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/ruffle/
+.env
+.DS_Store

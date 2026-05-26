@@ -1,0 +1,19 @@
+{
+  "name": "last-legacy-discord-activity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "postinstall": "node scripts/sync-ruffle.mjs"
+  },
+  "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
+    "@ruffle-rs/ruffle": "^0.2.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
