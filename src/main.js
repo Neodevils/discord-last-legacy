@@ -46,6 +46,7 @@ async function bootRuffle() {
   playerHost.replaceChildren(player);
   player.style.width = "100%";
   player.style.height = "100%";
+  setStatus("Oyun yukleniyor...");
   await player.load(SWF_URL);
   setStatus("Oyun yuklendi.");
 
@@ -73,12 +74,12 @@ function loadScript(src) {
 }
 
 async function main() {
+  bootDiscordSdk().catch((error) => {
+    console.warn("Discord SDK unavailable outside an Activity session.", error);
+  });
+
   try {
-    const results = await Promise.allSettled([bootDiscordSdk(), bootRuffle()]);
-    const failed = results.find((result) => result.status === "rejected");
-    if (failed) {
-      throw failed.reason;
-    }
+    await bootRuffle();
   } catch (error) {
     console.error(error);
     setStatus("Yukleme hatasi. Konsolu kontrol et.");
