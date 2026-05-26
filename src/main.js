@@ -3,7 +3,7 @@ import "./styles.css";
 
 const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 const BASE_URL = import.meta.env.BASE_URL;
-const ASSET_VERSION = "20260526-2252";
+const ASSET_VERSION = "20260527-0312";
 const versioned = (url) => `${url}?v=${ASSET_VERSION}`;
 const SWF_URL = versioned(`${BASE_URL}LastLegacy2.swf`);
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
@@ -52,23 +52,6 @@ async function bootDiscordSdk() {
 
   const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
   await sdk.ready();
-
-  await sdk.commands.authorize({
-    client_id: DISCORD_CLIENT_ID,
-    response_type: "code",
-    state: "",
-    prompt: "none",
-    scope: ["rpc.activities.write"],
-  });
-
-  await sdk.commands.setActivity({
-    activity: {
-      type: 0,
-      details: "Last Legacy 2",
-      state: "Playing",
-      instance: true,
-    },
-  });
 }
 
 async function bootRuffle() {
