@@ -8,7 +8,6 @@ const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
 
 const statusEl = document.querySelector("#status");
 const playerHost = document.querySelector("#player");
-const fullscreenButton = document.querySelector("#fullscreenButton");
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -31,7 +30,7 @@ async function bootRuffle() {
     autoplay: "on",
     unmuteOverlay: "hidden",
     showSwfDownload: false,
-    splashScreen: false,
+    splashScreen: true,
     contextMenu: "off",
     letterbox: "on",
     scale: "showAll",
@@ -49,10 +48,6 @@ async function bootRuffle() {
   setStatus("Oyun yukleniyor...");
   await player.load(SWF_URL);
   setStatus("Oyun yuklendi.");
-
-  fullscreenButton.addEventListener("click", () => {
-    player.requestFullscreen?.();
-  });
 }
 
 function loadScript(src) {
