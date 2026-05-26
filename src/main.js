@@ -3,10 +3,12 @@ import "./styles.css";
 
 const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 const BASE_URL = import.meta.env.BASE_URL;
-const SWF_URL = `${BASE_URL}LastLegacy2.swf`;
+const ASSET_VERSION = "20260526-2252";
+const versioned = (url) => `${url}?v=${ASSET_VERSION}`;
+const SWF_URL = versioned(`${BASE_URL}LastLegacy2.swf`);
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
-const KONGREGATE_API_URL = `${BASE_URL}API_AS3_Local.swf`;
-const NEWGROUNDS_PROMO_URL = `${BASE_URL}NewgroundsPromo.swf`;
+const KONGREGATE_API_URL = versioned(`${BASE_URL}API_AS3_Local.swf`);
+const NEWGROUNDS_PROMO_URL = versioned(`${BASE_URL}NewgroundsPromo.swf`);
 
 const playerHost = document.querySelector("#player");
 
