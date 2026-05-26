@@ -5,6 +5,7 @@ const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 const BASE_URL = import.meta.env.BASE_URL;
 const SWF_URL = `${BASE_URL}LastLegacy2.swf`;
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
+const KONGREGATE_API_URL = `${BASE_URL}API_AS3_Local.swf`;
 
 const playerHost = document.querySelector("#player");
 
@@ -77,10 +78,17 @@ async function bootRuffle() {
     showSwfDownload: false,
     splashScreen: true,
     contextMenu: "off",
+    allowScriptAccess: true,
     letterbox: "on",
     scale: "exactFit",
     quality: "high",
     base: BASE_URL,
+    urlRewriteRules: [
+      [
+        /^https:\/\/www\.kongregate\.com\/flash\/API_AS3_Local\.swf(?:\?.*)?$/,
+        KONGREGATE_API_URL,
+      ],
+    ],
   };
 
   await loadScript(RUFFLE_URL);
