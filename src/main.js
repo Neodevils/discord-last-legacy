@@ -74,7 +74,11 @@ function loadScript(src) {
 
 async function main() {
   try {
-    await Promise.allSettled([bootDiscordSdk(), bootRuffle()]);
+    const results = await Promise.allSettled([bootDiscordSdk(), bootRuffle()]);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) {
+      throw failed.reason;
+    }
   } catch (error) {
     console.error(error);
     setStatus("Yukleme hatasi. Konsolu kontrol et.");
