@@ -141,6 +141,7 @@ ruffle-player {
   bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(2, var(--control-size));
+  grid-template-rows: repeat(3, var(--control-size));
   gap: var(--control-gap);
 }
 
@@ -162,6 +163,14 @@ ruffle-player {
 .mobile-action-pad .mobile-control[data-control="jump"] {
   grid-column: 1;
   grid-row: 1;
+}
+
+.mobile-action-pad .mobile-control[data-control="delta"] {
+  grid-column: 1 / 3;
+  grid-row: 3;
+  width: auto;
+  border-radius: 999px;
+  font-size: clamp(13px, 3.2vw, 17px);
 }
 
 .mobile-menu-controls {

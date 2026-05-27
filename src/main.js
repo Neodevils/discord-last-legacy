@@ -12,14 +12,21 @@ const NEWGROUNDS_PROMO_URL = versioned(`${BASE_URL}NewgroundsPromo.swf`);
 
 const playerHost = document.querySelector("#player");
 const KEY_BINDINGS = {
-  up: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
-  down: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
-  left: { key: "ArrowLeft", code: "ArrowLeft", keyCode: 37 },
-  right: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 },
+  up: { key: "w", code: "KeyW", keyCode: 87 },
+  down: { key: "s", code: "KeyS", keyCode: 83 },
+  left: { key: "a", code: "KeyA", keyCode: 65 },
+  right: { key: "d", code: "KeyD", keyCode: 68 },
   jump: { key: " ", code: "Space", keyCode: 32 },
   primary: { key: "z", code: "KeyZ", keyCode: 90 },
   secondary: { key: "x", code: "KeyX", keyCode: 88 },
   tertiary: { key: "c", code: "KeyC", keyCode: 67 },
+  delta: {
+    key: "Shift",
+    code: "ShiftLeft",
+    keyCode: 16,
+    location: 1,
+    shiftKey: true,
+  },
   confirm: { key: "Enter", code: "Enter", keyCode: 13 },
   menu: { key: "Escape", code: "Escape", keyCode: 27 },
 };
@@ -33,6 +40,7 @@ const MOBILE_CONTROLS = [
   { id: "secondary", keyId: "secondary", label: "X" },
   { id: "tertiary", keyId: "tertiary", label: "C" },
   { id: "jump", keyId: "jump", label: "␣" },
+  { id: "delta", keyId: "delta", label: "Shift" },
   { id: "confirm", keyId: "confirm", label: "↵" },
   { id: "menu", keyId: "menu", label: "Esc" },
 ];
@@ -154,7 +162,7 @@ function installMobileControls(player) {
       ${["up", "left", "down", "right"].map(renderMobileButton).join("")}
     </div>
     <div class="mobile-action-pad" aria-label="Aksiyon tuşları">
-      ${["primary", "secondary", "tertiary", "jump"].map(renderMobileButton).join("")}
+      ${["primary", "secondary", "tertiary", "jump", "delta"].map(renderMobileButton).join("")}
     </div>
   `;
 
@@ -365,6 +373,8 @@ function createKeyboardEvent(type, binding) {
   const event = new KeyboardEvent(type, {
     key: binding.key,
     code: binding.code,
+    location: binding.location ?? 0,
+    shiftKey: binding.shiftKey ?? false,
     bubbles: true,
     cancelable: true,
     composed: true,
@@ -378,7 +388,7 @@ function createKeyboardEvent(type, binding) {
 }
 
 function getKeyboardTargets(player) {
-  return [player].filter(Boolean);
+  return [getPointerTarget(player)].filter(Boolean);
 }
 
 function sendVirtualPointer(player, type, vector) {
