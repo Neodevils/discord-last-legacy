@@ -16,10 +16,11 @@ const KEY_BINDINGS = {
   down: { key: "s", code: "KeyS", keyCode: 83 },
   left: { key: "a", code: "KeyA", keyCode: 65 },
   right: { key: "d", code: "KeyD", keyCode: 68 },
-  jump: { key: " ", code: "Space", keyCode: 32 },
+  jump: { key: "w", code: "KeyW", keyCode: 87 },
   primary: { key: "z", code: "KeyZ", keyCode: 90 },
   secondary: { key: "x", code: "KeyX", keyCode: 88 },
   tertiary: { key: "c", code: "KeyC", keyCode: 67 },
+  inventory: { key: "e", code: "KeyE", keyCode: 69 },
   delta: {
     key: "Shift",
     code: "ShiftLeft",
@@ -36,10 +37,23 @@ const MOBILE_CONTROLS = [
   { id: "left", keyId: "left", label: "◀", className: "mobile-control--left" },
   { id: "down", keyId: "down", label: "▼", className: "mobile-control--down" },
   { id: "right", keyId: "right", label: "▶", className: "mobile-control--right" },
-  { id: "primary", keyId: "primary", label: "Z", pointerAction: true },
-  { id: "secondary", keyId: "secondary", label: "X" },
-  { id: "tertiary", keyId: "tertiary", label: "C" },
-  { id: "jump", keyId: "jump", label: "␣" },
+  {
+    id: "primary",
+    keyId: "primary",
+    label: "X",
+    className: "mobile-control--face",
+    pointerAction: "left",
+  },
+  {
+    id: "secondary",
+    keyId: "secondary",
+    label: "Y",
+    className: "mobile-control--face",
+    pointerAction: "right",
+  },
+  { id: "tertiary", keyId: "tertiary", label: "C", className: "mobile-control--face" },
+  { id: "jump", keyId: "jump", label: "W", className: "mobile-control--face" },
+  { id: "inventory", keyId: "inventory", label: "E", className: "mobile-control--small" },
   { id: "delta", keyId: "delta", label: "Shift" },
   { id: "confirm", keyId: "confirm", label: "↵" },
   { id: "menu", keyId: "menu", label: "Esc" },
@@ -98,8 +112,9 @@ async function bootRuffle() {
     splashScreen: true,
     contextMenu: "off",
     allowScriptAccess: true,
-    letterbox: "on",
-    scale: "exactFit",
+    letterbox: "off",
+    scale: "noBorder",
+    forceScale: true,
     quality: "high",
     base: BASE_URL,
     urlRewriteRules: [
@@ -155,6 +170,7 @@ function installMobileControls(player) {
   controls.setAttribute("aria-label", "Mobil kontroller");
   controls.innerHTML = `
     <div class="mobile-menu-controls" aria-label="Menü kontrolleri">
+      ${renderMobileButton("inventory")}
       ${renderMobileButton("confirm")}
       ${renderMobileButton("menu")}
     </div>
@@ -168,7 +184,7 @@ function installMobileControls(player) {
 
   playerHost.append(controls);
 
-  const pressedKeys = new Set();
+  const pressedKeys = new Map();
   const activePointers = new Map();
   const activeDirections = new Set();
   const lastAimVector = { x: 1, y: 0 };
@@ -227,7 +243,7 @@ function installMobileControls(player) {
     sendVirtualPointer(player, "move", lastAimVector);
 
     if (control.pointerAction) {
-      sendVirtualPointer(player, "down", lastAimVector);
+      sendVirtualPointer(player, "down", lastAimVector, control.pointerAction);
     }
 
     if (control.keyId) {
@@ -258,7 +274,7 @@ function installMobileControls(player) {
     }
 
     if (control.pointerAction) {
-      sendVirtualPointer(player, "up", lastAimVector);
+      sendVirtualPointer(player, "up", lastAimVector, control.pointerAction);
     }
 
     sendVirtualPointer(player, "move", lastAimVector);
@@ -308,8 +324,8 @@ function installMobileControls(player) {
       releaseControl(pointerId);
     }
 
-    for (const keyId of pressedKeys) {
-      dispatchKeyboardEvent(player, "keyup", KEY_BINDINGS[keyId]);
+    for (const pressedKey of pressedKeys.values()) {
+      dispatchKeyboardEvent(player, "keyup", pressedKey.binding, { shiftKey: false });
     }
     pressedKeys.clear();
 
@@ -340,24 +356,42 @@ function getMobileControl(controlId) {
 }
 
 function pressKey(player, keyId, pressedKeys) {
-  if (pressedKeys.has(keyId)) {
+  const binding = KEY_BINDINGS[keyId];
+  const pressedKey = binding.code;
+  const existingPress = pressedKeys.get(pressedKey);
+
+  if (existingPress) {
+    existingPress.count += 1;
     return;
   }
 
-  pressedKeys.add(keyId);
-  dispatchKeyboardEvent(player, "keydown", KEY_BINDINGS[keyId]);
+  pressedKeys.set(pressedKey, { binding, count: 1 });
+  dispatchKeyboardEvent(player, "keydown", binding, {
+    shiftKey: keyId === "delta" || pressedKeys.has(KEY_BINDINGS.delta.code),
+  });
 }
 
 function releaseKey(player, keyId, pressedKeys) {
-  if (!pressedKeys.has(keyId)) {
+  const binding = KEY_BINDINGS[keyId];
+  const pressedKey = binding.code;
+  const existingPress = pressedKeys.get(pressedKey);
+
+  if (!existingPress) {
     return;
   }
 
-  pressedKeys.delete(keyId);
-  dispatchKeyboardEvent(player, "keyup", KEY_BINDINGS[keyId]);
+  if (existingPress.count > 1) {
+    existingPress.count -= 1;
+    return;
+  }
+
+  pressedKeys.delete(pressedKey);
+  dispatchKeyboardEvent(player, "keyup", binding, {
+    shiftKey: keyId !== "delta" && pressedKeys.has(KEY_BINDINGS.delta.code),
+  });
 }
 
-function dispatchKeyboardEvent(player, type, binding) {
+function dispatchKeyboardEvent(player, type, binding, modifiers = {}) {
   if (!binding) {
     return;
   }
@@ -365,16 +399,16 @@ function dispatchKeyboardEvent(player, type, binding) {
   focusPlayer(player);
 
   for (const target of getKeyboardTargets(player)) {
-    target.dispatchEvent(createKeyboardEvent(type, binding));
+    target.dispatchEvent(createKeyboardEvent(type, binding, modifiers));
   }
 }
 
-function createKeyboardEvent(type, binding) {
+function createKeyboardEvent(type, binding, modifiers) {
   const event = new KeyboardEvent(type, {
     key: binding.key,
     code: binding.code,
     location: binding.location ?? 0,
-    shiftKey: binding.shiftKey ?? false,
+    shiftKey: modifiers.shiftKey ?? binding.shiftKey ?? false,
     bubbles: true,
     cancelable: true,
     composed: true,
@@ -388,10 +422,18 @@ function createKeyboardEvent(type, binding) {
 }
 
 function getKeyboardTargets(player) {
-  return [getPointerTarget(player)].filter(Boolean);
+  return [getKeyboardTarget(player)].filter(Boolean);
 }
 
-function sendVirtualPointer(player, type, vector) {
+function getKeyboardTarget(player) {
+  return (
+    player.shadowRoot?.querySelector("#container") ||
+    player.shadowRoot?.querySelector("canvas") ||
+    player
+  );
+}
+
+function sendVirtualPointer(player, type, vector, button = "left") {
   const target = getPointerTarget(player);
   const rect = player.getBoundingClientRect();
 
@@ -403,11 +445,11 @@ function sendVirtualPointer(player, type, vector) {
   const pointerType = type === "move" ? "pointermove" : `pointer${type}`;
   const mouseType = type === "move" ? "mousemove" : `mouse${type}`;
 
-  dispatchPointerEvent(target, pointerType, point, type);
-  dispatchMouseEvent(target, mouseType, point, type === "down");
+  dispatchPointerEvent(target, pointerType, point, type, button);
+  dispatchMouseEvent(target, mouseType, point, type === "down", button);
 
   if (type === "up") {
-    dispatchMouseEvent(target, "click", point, false);
+    dispatchMouseEvent(target, button === "right" ? "contextmenu" : "click", point, false, button);
   }
 }
 
@@ -431,10 +473,13 @@ function getPointerTarget(player) {
   );
 }
 
-function dispatchPointerEvent(target, type, point, action) {
+function dispatchPointerEvent(target, type, point, action, button) {
   if (!window.PointerEvent) {
     return;
   }
+
+  const buttonCode = button === "right" ? 2 : 0;
+  const buttons = action === "down" ? (button === "right" ? 2 : 1) : 0;
 
   target.dispatchEvent(
     new PointerEvent(type, {
@@ -442,8 +487,8 @@ function dispatchPointerEvent(target, type, point, action) {
       pointerId: 1,
       pointerType: "touch",
       isPrimary: true,
-      button: action === "move" ? -1 : 0,
-      buttons: action === "down" ? 1 : 0,
+      button: action === "move" ? -1 : buttonCode,
+      buttons,
       bubbles: true,
       cancelable: true,
       composed: true,
@@ -451,12 +496,15 @@ function dispatchPointerEvent(target, type, point, action) {
   );
 }
 
-function dispatchMouseEvent(target, type, point, isDown) {
+function dispatchMouseEvent(target, type, point, isDown, button) {
+  const buttonCode = button === "right" ? 2 : 0;
+  const buttons = isDown ? (button === "right" ? 2 : 1) : 0;
+
   target.dispatchEvent(
     new MouseEvent(type, {
       ...point,
-      button: isDown ? 0 : 0,
-      buttons: isDown ? 1 : 0,
+      button: buttonCode,
+      buttons,
       bubbles: true,
       cancelable: true,
       composed: true,
@@ -466,8 +514,10 @@ function dispatchMouseEvent(target, type, point, isDown) {
 }
 
 function focusPlayer(player) {
-  player.setAttribute("tabindex", "0");
-  player.focus?.({ preventScroll: true });
+  const target = getKeyboardTarget(player);
+
+  target?.setAttribute?.("tabindex", "0");
+  target?.focus?.({ preventScroll: true });
 }
 
 function installMobileGestureGuards() {

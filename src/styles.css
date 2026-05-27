@@ -46,8 +46,8 @@ ruffle-player {
 }
 
 .mobile-controls {
-  --control-size: clamp(48px, 12vw, 72px);
-  --control-gap: clamp(8px, 2.4vw, 14px);
+  --control-size: clamp(48px, 10vw, 66px);
+  --control-gap: clamp(8px, 2vw, 12px);
   --control-bg: rgba(15, 19, 26, 0.58);
   --control-bg-active: rgba(242, 244, 248, 0.88);
   --control-border: rgba(255, 255, 255, 0.26);
@@ -98,6 +98,10 @@ ruffle-player {
   touch-action: none;
 }
 
+.mobile-control--face {
+  font-size: clamp(20px, 5vw, 28px);
+}
+
 .mobile-control.is-pressed,
 .mobile-control:active {
   background: var(--control-bg-active);
@@ -140,29 +144,37 @@ ruffle-player {
   right: max(16px, env(safe-area-inset-right));
   bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: repeat(2, var(--control-size));
+  grid-template-columns: repeat(3, var(--control-size));
   grid-template-rows: repeat(3, var(--control-size));
   gap: var(--control-gap);
 }
 
 .mobile-action-pad .mobile-control[data-control="primary"] {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 2;
+  border-color: rgba(96, 165, 250, 0.7);
+  color: #dbeafe;
 }
 
 .mobile-action-pad .mobile-control[data-control="secondary"] {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
+  border-color: rgba(74, 222, 128, 0.7);
+  color: #dcfce7;
 }
 
 .mobile-action-pad .mobile-control[data-control="tertiary"] {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 2;
+  border-color: rgba(248, 113, 113, 0.68);
+  color: #fee2e2;
 }
 
 .mobile-action-pad .mobile-control[data-control="jump"] {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 2;
+  border-color: rgba(250, 204, 21, 0.68);
+  color: #fef9c3;
 }
 
 .mobile-action-pad .mobile-control[data-control="delta"] {
@@ -178,14 +190,15 @@ ruffle-player {
   top: max(12px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
-.mobile-menu-controls .mobile-control {
-  width: clamp(42px, 10vw, 58px);
-  height: clamp(34px, 8vw, 44px);
+.mobile-menu-controls .mobile-control,
+.mobile-control--small {
+  width: clamp(38px, 8.5vw, 52px);
+  height: clamp(32px, 7vw, 40px);
   border-radius: 999px;
-  font-size: clamp(12px, 3vw, 15px);
+  font-size: clamp(11px, 2.8vw, 14px);
 }
 
 @media (hover: none), (pointer: coarse), (max-width: 900px) {
