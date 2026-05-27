@@ -1,9 +1,11 @@
 :root {
   background: #000;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -14,16 +16,178 @@ body,
   margin: 0;
 }
 
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
 body {
   overflow: hidden;
   background: #000;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #player {
+  position: fixed;
+  inset: 0;
   background: #000;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100svh;
 }
 
 ruffle-player {
+  display: block;
   width: 100%;
   height: 100%;
+}
+
+.mobile-controls {
+  --control-size: clamp(48px, 12vw, 72px);
+  --control-gap: clamp(8px, 2.4vw, 14px);
+  --control-bg: rgba(15, 19, 26, 0.58);
+  --control-bg-active: rgba(242, 244, 248, 0.88);
+  --control-border: rgba(255, 255, 255, 0.26);
+  --control-text: rgba(255, 255, 255, 0.92);
+  --control-text-active: #11151c;
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  padding:
+    max(14px, env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  touch-action: none;
+}
+
+.mobile-dpad,
+.mobile-action-pad,
+.mobile-menu-controls {
+  pointer-events: auto;
+}
+
+.mobile-control {
+  width: var(--control-size);
+  height: var(--control-size);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+    var(--control-bg);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: var(--control-text);
+  display: grid;
+  place-items: center;
+  font: 800 clamp(15px, 4.2vw, 22px) / 1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+  touch-action: none;
+}
+
+.mobile-control.is-pressed,
+.mobile-control:active {
+  background: var(--control-bg-active);
+  color: var(--control-text-active);
+  transform: translateY(1px) scale(0.97);
+}
+
+.mobile-dpad {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(3, var(--control-size));
+  grid-template-rows: repeat(3, var(--control-size));
+  gap: var(--control-gap);
+}
+
+.mobile-control--up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mobile-control--left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.mobile-control--down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.mobile-control--right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.mobile-action-pad {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, var(--control-size));
+  gap: var(--control-gap);
+}
+
+.mobile-action-pad .mobile-control[data-control="primary"] {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mobile-action-pad .mobile-control[data-control="secondary"] {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.mobile-action-pad .mobile-control[data-control="tertiary"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.mobile-action-pad .mobile-control[data-control="jump"] {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.mobile-menu-controls {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  gap: 10px;
+}
+
+.mobile-menu-controls .mobile-control {
+  width: clamp(42px, 10vw, 58px);
+  height: clamp(34px, 8vw, 44px);
+  border-radius: 999px;
+  font-size: clamp(12px, 3vw, 15px);
+}
+
+@media (hover: none), (pointer: coarse), (max-width: 900px) {
+  .mobile-controls {
+    display: block;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 620px) {
+  .mobile-controls {
+    --control-size: clamp(44px, 15vw, 60px);
+    --control-gap: 8px;
+  }
 }
