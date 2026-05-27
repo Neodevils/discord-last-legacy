@@ -40,14 +40,12 @@ const MOBILE_CONTROLS = [
   { id: "right", keyId: "right", label: "▶", className: "mobile-control--right" },
   {
     id: "primary",
-    keyId: "primary",
     label: "X",
     className: "mobile-control--face",
-    pointerAction: "left",
+    pointerAction: "interact",
   },
   {
     id: "secondary",
-    keyId: "secondary",
     label: "Y",
     className: "mobile-control--face",
     pointerAction: "right",
@@ -244,7 +242,7 @@ function installMobileControls(player) {
 
     sendVirtualPointer(player, "move", lastAimVector);
 
-    if (control.pointerAction) {
+    if (control.pointerAction && control.pointerAction !== "interact") {
       sendVirtualPointer(player, "down", lastAimVector, control.pointerAction);
     }
 
@@ -275,7 +273,9 @@ function installMobileControls(player) {
       releaseKey(player, control.keyId, pressedKeys);
     }
 
-    if (control.pointerAction) {
+    if (control.pointerAction === "interact") {
+      sendInteractionClick(player, lastAimVector);
+    } else if (control.pointerAction) {
       sendVirtualPointer(player, "up", lastAimVector, control.pointerAction);
     }
 
@@ -453,6 +453,40 @@ function sendVirtualPointer(player, type, vector, button = "left") {
   if (type === "up") {
     dispatchMouseEvent(target, button === "right" ? "contextmenu" : "click", point, false, button);
   }
+}
+
+function sendInteractionClick(player, vector) {
+  const target = getPointerTarget(player);
+  const rect = player.getBoundingClientRect();
+
+  if (!target || rect.width <= 0 || rect.height <= 0) {
+    return;
+  }
+
+  for (const point of getInteractionPoints(rect, vector)) {
+    dispatchPointerEvent(target, "pointerdown", point, "down", "left");
+    dispatchMouseEvent(target, "mousedown", point, true, "left");
+    dispatchPointerEvent(target, "pointerup", point, "up", "left");
+    dispatchMouseEvent(target, "mouseup", point, false, "left");
+    dispatchMouseEvent(target, "click", point, false, "left");
+  }
+}
+
+function getInteractionPoints(rect, vector) {
+  const centerX = rect.left + rect.width * 0.5;
+  const centerY = rect.top + rect.height * 0.54;
+  const closeX = vector.x * rect.width * 0.12;
+  const closeY = vector.y * rect.height * 0.12;
+  const farX = vector.x * rect.width * 0.2;
+  const farY = vector.y * rect.height * 0.2;
+
+  return [
+    { clientX: centerX + closeX, clientY: centerY + closeY },
+    { clientX: centerX + farX, clientY: centerY + farY },
+    { clientX: centerX, clientY: centerY },
+    { clientX: centerX + closeX, clientY: centerY + closeY - rect.height * 0.08 },
+    { clientX: centerX + closeX, clientY: centerY + closeY + rect.height * 0.08 },
+  ];
 }
 
 function getAimPoint(rect, vector) {
