@@ -11,6 +11,7 @@ const KONGREGATE_API_URL = versioned(`${BASE_URL}API_AS3_Local.swf`);
 const NEWGROUNDS_PROMO_URL = versioned(`${BASE_URL}NewgroundsPromo.swf`);
 
 const playerHost = document.querySelector("#player");
+const MOBILE_CONTROLS_CLASS = "has-mobile-controls";
 const KEY_BINDINGS = {
   up: { key: "w", code: "KeyW", keyCode: 87 },
   down: { key: "s", code: "KeyS", keyCode: 83 },
@@ -131,6 +132,7 @@ async function bootRuffle() {
 
   await loadScript(RUFFLE_URL);
   installMobileGestureGuards();
+  installMobileControlVisibility();
 
   const ruffle = window.RufflePlayer.newest();
   const player = ruffle.createPlayer();
@@ -540,6 +542,35 @@ function installMobileGestureGuards() {
       event.preventDefault();
     });
   }
+}
+
+function installMobileControlVisibility() {
+  const updateVisibility = () => {
+    document.documentElement.classList.toggle(
+      MOBILE_CONTROLS_CLASS,
+      shouldShowMobileControls(),
+    );
+  };
+
+  updateVisibility();
+
+  window.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch") {
+      document.documentElement.classList.add(MOBILE_CONTROLS_CLASS);
+    }
+  });
+
+  window.addEventListener("touchstart", () => {
+    document.documentElement.classList.add(MOBILE_CONTROLS_CLASS);
+  });
+}
+
+function shouldShowMobileControls() {
+  return (
+    navigator.maxTouchPoints > 0 ||
+    navigator.msMaxTouchPoints > 0 ||
+    "ontouchstart" in window
+  );
 }
 
 async function main() {

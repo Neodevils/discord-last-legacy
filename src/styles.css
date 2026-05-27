@@ -73,6 +73,10 @@ ruffle-player {
   touch-action: none;
 }
 
+.has-mobile-controls .mobile-controls {
+  display: block;
+}
+
 .mobile-dpad,
 .mobile-action-pad,
 .mobile-menu-controls {
@@ -199,17 +203,4 @@ ruffle-player {
   height: clamp(32px, 7vw, 40px);
   border-radius: 999px;
   font-size: clamp(11px, 2.8vw, 14px);
-}
-
-@media (hover: none), (pointer: coarse), (max-width: 900px) {
-  .mobile-controls {
-    display: block;
-  }
-}
-
-@media (orientation: portrait) and (max-width: 620px) {
-  .mobile-controls {
-    --control-size: clamp(44px, 15vw, 60px);
-    --control-gap: 8px;
-  }
 }
