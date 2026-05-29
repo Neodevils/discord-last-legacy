@@ -9,6 +9,275 @@ const SWF_URL = `${BASE_URL}LastLegacy2.swf`;
 const RUFFLE_URL = `${BASE_URL}ruffle/ruffle.js`;
 const KONGREGATE_API_URL = versioned(`${BASE_URL}API_AS3_Local.swf`);
 const NEWGROUNDS_PROMO_URL = versioned(`${BASE_URL}NewgroundsPromo.swf`);
+const DISCORD_ACTIVITY_UPDATE_INTERVAL = 30_000;
+const DISCORD_ACTIVITY_FALLBACK_TEXT = {
+  details: "Last Legacy 2",
+  state: "In game",
+};
+const CHAPTER_HINT_KEYS = [
+  "chapter",
+  "bolum",
+  "bölüm",
+  "level",
+  "stage",
+  "scene",
+  "area",
+  "room",
+  "zone",
+  "map",
+];
+
+function createDiscordActivityManager(sdk) {
+  const startedAt = Date.now();
+  let lastSignature = "";
+  let activeState = { ...DISCORD_ACTIVITY_FALLBACK_TEXT };
+
+  const normalizeChapter = (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? `${value}` : null;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    }
+
+    return null;
+  };
+
+  const dedupeAndNormalizeState = (nextState) => ({
+    chapter: normalizeChapter(nextState.chapter),
+    area: normalizeChapter(nextState.area),
+    state: normalizeChapter(nextState.state) || activeState.state,
+  });
+
+  const formatActivityState = (state) => {
+    const chapterLabel = state.chapter
+      ? `Chapter ${state.chapter}`
+      : state.area
+        ? state.area
+        : state.state;
+    const chapterPrefix = chapterLabel ? ` - ${chapterLabel}` : "";
+
+    return {
+      type: 0,
+      details: `${DISCORD_ACTIVITY_FALLBACK_TEXT.details}${chapterPrefix}`,
+      state: chapterLabel ? chapterLabel : state.state,
+      assets: {
+        large_text: DISCORD_ACTIVITY_FALLBACK_TEXT.details,
+        small_text: chapterPrefix ? chapterLabel : state.state,
+      },
+      timestamps: {
+        start: startedAt,
+      },
+      instance: true,
+    };
+  };
+
+  const setActivity = async (nextState) => {
+    const safeState = dedupeAndNormalizeState(nextState);
+    const activity = formatActivityState(safeState);
+    const signature = JSON.stringify({
+      details: activity.details,
+      state: activity.state,
+      smallText: activity.assets.small_text,
+    });
+
+    if (signature === lastSignature) {
+      return;
+    }
+
+    lastSignature = signature;
+    activeState = safeState;
+
+    try {
+      await sdk.commands.setActivity({ activity });
+    } catch (error) {
+      console.warn("Discord activity update failed.", error);
+      throw error;
+    }
+  };
+
+  return {
+    updateState: async (nextState) => {
+      if (!nextState) {
+        return;
+      }
+
+      const state = dedupeAndNormalizeState(nextState);
+      if (!state.chapter && !state.area && !state.state) {
+        return;
+      }
+
+      await setActivity(state);
+    },
+    updateFromChapter: async (chapter) => {
+      await setActivity({
+        ...activeState,
+        chapter,
+        state: activeState.state || DISCORD_ACTIVITY_FALLBACK_TEXT.state,
+      });
+    },
+    setFallback: async () => {
+      await setActivity(DISCORD_ACTIVITY_FALLBACK_TEXT);
+    },
+    getCurrentState: () => ({ ...activeState }),
+    get lastSignature() {
+      return lastSignature;
+    },
+  };
+}
+
+function parseChapterFromText(value) {
+  const text = `${value}`.trim();
+  const exactMatch = text.match(/^\d{1,4}$/);
+  if (exactMatch) {
+    return exactMatch[0];
+  }
+
+  const match = text.match(
+    /\b(?:chapter|bolum|bölüm|level|stage|scene|area|room|zone|map)\b[^0-9a-zA-Z]*([0-9]{1,4}(?:-[0-9]{1,4})?|[A-Za-z][A-Za-z0-9 _.-]{1,20})/i,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  return match[1].trim();
+}
+
+function tryReadStorageChapters() {
+  const candidateStates = [];
+  const addCandidateFromValue = (value, candidates) => {
+    const normalized = parseChapterFromText(value);
+    if (normalized) {
+      candidates.push(normalized);
+    }
+  };
+
+  const readNestedValue = (value, candidates) => {
+    if (typeof value === "string") {
+      addCandidateFromValue(value, candidates);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        readNestedValue(item, candidates);
+      }
+      return;
+    }
+
+    if (value && typeof value === "object") {
+      for (const [key, item] of Object.entries(value)) {
+        const lowerKey = key.toLowerCase();
+        if (CHAPTER_HINT_KEYS.some((hint) => lowerKey.includes(hint))) {
+          addCandidateFromValue(item, candidates);
+          continue;
+        }
+
+        readNestedValue(item, candidates);
+      }
+    }
+  };
+
+  const scanStorage = (storage) => {
+    try {
+      for (let i = 0; i < storage.length; i += 1) {
+        const key = storage.key(i);
+        if (!key) {
+          continue;
+        }
+
+        const lowerKey = key.toLowerCase();
+        const value = storage.getItem(key);
+        if (value === null || value === undefined) {
+          continue;
+        }
+
+        if (CHAPTER_HINT_KEYS.some((hint) => lowerKey.includes(hint))) {
+          addCandidateFromValue(value, candidateStates);
+        }
+
+        try {
+          const parsedValue = JSON.parse(value);
+          readNestedValue(parsedValue, candidateStates);
+        } catch {
+          addCandidateFromValue(value, candidateStates);
+        }
+      }
+    } catch {
+      // ignore storage access issues in sandboxed/non-storage contexts
+    }
+  };
+
+  scanStorage(window.localStorage);
+  scanStorage(window.sessionStorage);
+
+  return candidateStates[0] || null;
+}
+
+function createGameStateBridge(player, presenceManager) {
+  if (!presenceManager) {
+    return () => {};
+  }
+
+  const playerApi = player.ruffle?.(1) ?? player;
+  const applyFromFsCommand = async (command, args) => {
+    const commandText = `${command} ${args}`.toLowerCase();
+    const fromCommand = parseChapterFromText(commandText);
+    const fromArgs = parseChapterFromText(`${args}`);
+
+    if (fromCommand || fromArgs) {
+      await presenceManager.updateFromChapter(fromCommand || fromArgs);
+      return;
+    }
+
+    if (commandText.includes("state:") || commandText.includes("scene:")) {
+      await presenceManager.updateState({ state: `${args}`.trim() || commandText });
+    }
+  };
+
+  if (typeof playerApi.addFSCommandHandler === "function") {
+    playerApi.addFSCommandHandler((command, args) => {
+      applyFromFsCommand(command, args).catch(() => {});
+    });
+  } else if ("onFSCommand" in playerApi) {
+    playerApi.onFSCommand = (command, args) => {
+      applyFromFsCommand(command, args).catch(() => {});
+    };
+  }
+
+  const traceHandler = async (message) => {
+    const fromTrace = parseChapterFromText(message);
+    if (fromTrace) {
+      await presenceManager.updateFromChapter(fromTrace);
+    }
+  };
+
+  if ("traceObserver" in playerApi) {
+    try {
+      playerApi.traceObserver = traceHandler;
+    } catch {
+      // trace observer might be unavailable in older API versions
+    }
+  } else if (typeof playerApi.setTraceObserver === "function") {
+    playerApi.setTraceObserver(traceHandler);
+  }
+
+  const interval = setInterval(() => {
+    const fromStorage = tryReadStorageChapters();
+    if (fromStorage) {
+      presenceManager.updateFromChapter(fromStorage).catch(() => {});
+    }
+  }, DISCORD_ACTIVITY_UPDATE_INTERVAL);
+
+  return () => clearInterval(interval);
+}
 
 const playerHost = document.querySelector("#player");
 const MOBILE_CONTROLS_CLASS = "has-mobile-controls";
@@ -40,6 +309,7 @@ const MOBILE_CONTROLS = [
   { id: "right", keyId: "right", label: "▶", className: "mobile-control--right" },
   {
     id: "primary",
+    keyId: "primary",
     label: "X",
     className: "mobile-control--face",
     pointerAction: "interact",
@@ -93,10 +363,11 @@ function installKongregateStub() {
 
 async function bootDiscordSdk() {
   if (!DISCORD_CLIENT_ID) {
-    return;
+    return null;
   }
 
   const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
+  const presenceManager = createDiscordActivityManager(sdk);
 
   try {
     await sdk.ready();
@@ -145,26 +416,20 @@ async function bootDiscordSdk() {
   }
 
   if (!isAuthenticated && !authCode) {
-    return;
+    return null;
   }
 
   try {
-    await sdk.commands.setActivity({
-      activity: {
-        type: 0,
-        state: "Oyunda",
-        details: "Last Legacy 2",
-        timestamps: {
-          start: Date.now(),
-        },
-      },
-    });
+    await presenceManager.setFallback();
   } catch (error) {
-    console.warn("Discord SDK setActivity failed.", error);
+    console.warn("Discord activity setup failed.", error);
+    return null;
   }
+
+  return presenceManager;
 }
 
-async function bootRuffle() {
+async function bootRuffle(presenceManager) {
   installKongregateStub();
 
   window.RufflePlayer = window.RufflePlayer || {};
@@ -203,6 +468,10 @@ async function bootRuffle() {
   player.style.height = "100%";
   await player.load(SWF_URL);
   installMobileControls(player);
+  const cleanupBridge = createGameStateBridge(player, presenceManager);
+  if (cleanupBridge) {
+    window.addEventListener("beforeunload", cleanupBridge, { once: true });
+  }
 }
 
 function loadScript(src) {
@@ -672,12 +941,16 @@ function shouldShowMobileControls() {
 }
 
 async function main() {
-  bootDiscordSdk().catch((error) => {
-    console.warn("Discord SDK unavailable outside an Activity session.", error);
-  });
+  let presenceManager;
 
   try {
-    await bootRuffle();
+    presenceManager = await bootDiscordSdk();
+  } catch (error) {
+    console.warn("Discord SDK unavailable outside an Activity session.", error);
+  }
+
+  try {
+    await bootRuffle(presenceManager);
   } catch (error) {
     console.error(error);
   }
