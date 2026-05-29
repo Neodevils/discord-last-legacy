@@ -97,7 +97,71 @@ async function bootDiscordSdk() {
   }
 
   const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
-  await sdk.ready();
+
+  try {
+    await sdk.ready();
+  } catch (error) {
+    throw error;
+  }
+
+  let isAuthenticated = false;
+  let authCode;
+
+  try {
+    const authorizeResponse = await sdk.commands.authorize({
+      client_id: DISCORD_CLIENT_ID,
+      response_type: "code",
+      state: crypto.randomUUID(),
+      prompt: "none",
+      scope: ["identify", "rpc.activities.write"],
+    });
+
+    authCode = authorizeResponse?.code;
+  } catch (error) {
+    console.warn("Discord SDK authorize failed.", error);
+  }
+
+  if (authCode) {
+    try {
+      const tokenResponse = await fetch("/.proxy/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: authCode }),
+      });
+
+      if (tokenResponse.ok) {
+        const { access_token } = await tokenResponse.json();
+
+        if (access_token) {
+          await sdk.commands.authenticate({ access_token });
+          isAuthenticated = true;
+        }
+      }
+    } catch (error) {
+      console.warn("Discord SDK authenticate failed.", error);
+    }
+  }
+
+  if (!isAuthenticated && !authCode) {
+    return;
+  }
+
+  try {
+    await sdk.commands.setActivity({
+      activity: {
+        type: 0,
+        state: "Oyunda",
+        details: "Last Legacy 2",
+        timestamps: {
+          start: Date.now(),
+        },
+      },
+    });
+  } catch (error) {
+    console.warn("Discord SDK setActivity failed.", error);
+  }
 }
 
 async function bootRuffle() {
@@ -113,7 +177,7 @@ async function bootRuffle() {
     allowScriptAccess: true,
     letterbox: "on",
     scale: "showAll",
-    forceScale: true,
+    forceScale: false,
     quality: "high",
     base: BASE_URL,
     urlRewriteRules: [
